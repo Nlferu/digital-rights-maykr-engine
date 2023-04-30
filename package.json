@@ -1,0 +1,37 @@
+{
+  "name": "digital-rights-maykr",
+  "authors": "Neftyr And MarkizOrias",
+  "version": "0.0.1",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
+    "@nomiclabs/hardhat-etherscan": "^3.0.3",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@openzeppelin/contracts": "^4.8.1",
+    "@chainlink/contracts": "^0.5.1",
+    "@pinata/sdk": "^1.1.23",
+    "hardhat-gas-reporter": "^1.0.7",
+    "solidity-coverage": "^0.7.18",
+    "hardhat-deploy": "^0.10.5",
+    "ethereum-waffle": "^3.4.0",
+    "prettier": "^2.5.1",
+    "dotenv": "^16.0.0",
+    "hardhat": "^2.9.0",
+    "ethers": "^5.5.4",
+    "chai": "^4.3.4",
+    "@typechain/ethers-v5": "^9.0.0",
+    "@typechain/hardhat": "^4.0.0",
+    "@types/node": "^17.0.13",
+    "@types/mocha": "^9.1.0",
+    "@types/chai": "^4.3.0",
+    "cross-env": "^7.0.2",
+    "typechain": "^7.0.0",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.5"
+  },
+  "scripts": {
+    "slither": "slither . --solc-remaps '@=node_modules/@' --exclude naming-convention,external-function,low-level-calls",
+    "test": "hardhat test",
+    "test-staging": "hardhat test",
+    "coverage": "hardhat coverage"
+  }
+}
