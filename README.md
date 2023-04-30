@@ -1,5 +1,5 @@
-# ChainLink Hackathon Spring 2023
-# Digital Rights Maykr Backend
+# Digital Rights Maykr
+* Back-End
 
 **The Front-End repo is here:** https://...
 
