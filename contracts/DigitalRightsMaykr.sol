@@ -28,7 +28,8 @@ contract DigitalRightsMaykr is ERC721A {
 
     constructor() ERC721A("Digital Rights Maykr", "DRM") {}
 
-    /** @dev Add expiration time of certificate */
+    /** @dev Add expiration time of certificate?? */
+    // We can try to use NFT Storage to get all created certs under similar tokenURI
     function mintNFT(string memory createdTokenURI) external {
         // Assigning 0 to first tokenId created
         uint256 newTokenId = totalSupply();
@@ -50,9 +51,11 @@ contract DigitalRightsMaykr is ERC721A {
         return cert.s_tokenIdToURI;
     }
 
-    // Renew your certificate
-    function renewCertificate(uint256 tokenId) external {}
+    // Communicate with certificates owners, should be restricted to only existing on our service
+    function sendMessage(address to, string calldata yourMessage) external {
+        //message memory newMessage = message(msg.sender, block.timestamp, yourMessage);
+    }
 
-    // Communicate with certificates owners
-    function sendMessage(address to, string memory yourMessage) external {}
+    // We can try to do it without below
+    function readMessage() external {}
 }
