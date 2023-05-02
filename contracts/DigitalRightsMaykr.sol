@@ -14,7 +14,9 @@ contract DigitalRightsMaykr is ERC721A {
      * created NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.)
 
      * Use ERC4671 for owner to proof he is creator of something
-     * Use Simple Contract to manage his nft's if he want to borrow license to someone to use his invention
+     * Use Simple Contract to manage his nft's if he want to borrow license to someone for certain time to use his invention (and get money for it)
+     * 
+     * Revoke for us to remove copyright plagiarism
     */
 
     // NFT Structs

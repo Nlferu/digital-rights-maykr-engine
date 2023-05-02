@@ -21,7 +21,9 @@ export async function storeNFTs(imagesPath) {
         const image = await fileFromPath(`${fullImagesPath}/${files[fileIndex]}`)
         //@ts-ignore
         const nftstorage = new NFTStorage({ token: NFT_STORAGE_KEY })
+        // We have to start counting from 0 here, and every single upload should have number instead of name as those will be our certs
         const dogName = files[fileIndex].replace(".jpg", "")
+        console.log(`Dog: ${dogName}`)
         const response = await nftstorage.store({
             image,
             name: dogName,

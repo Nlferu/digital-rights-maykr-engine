@@ -15,4 +15,4 @@ export const networkConfig: networkConfigInfo = {
 }
 
 export const developmentChains = ["hardhat", "localhost"]
-export const imgPath = "./images"
+export const imgPath = "../Digital_Rights_Maykr/images"
