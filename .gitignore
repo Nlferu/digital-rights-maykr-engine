@@ -6,6 +6,7 @@ coverage
 coverage.json
 typechain
 .notes.md
+typechain-types
 
 # VsCode
 .vscode
