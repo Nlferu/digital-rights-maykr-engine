@@ -218,4 +218,14 @@ abstract contract ERC4671 is IERC4671, IERC4671Metadata, IERC4671Enumerable, ERC
         }
         array.pop();
     }
+
+    /** @notice Custom Function */
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+        return _tokens[tokenId].owner != address(0);
+    }
+
+    /** @notice Custom Getter */
+    function getOwnerBasedOnIndex(uint256 tokenId) public view returns (address) {
+        return _tokens[tokenId].owner;
+    }
 }
