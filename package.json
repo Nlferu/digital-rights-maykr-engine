@@ -33,9 +33,9 @@
     "typescript": "^4.5.5"
   },
   "scripts": {
-    "slither": "slither . --solc-remaps '@=node_modules/@' --exclude naming-convention,external-function,low-level-calls",
     "test": "hardhat test",
     "test-staging": "hardhat test",
-    "coverage": "hardhat coverage"
+    "coverage": "hardhat coverage",
+    "slither": "slither . --solc-remaps '@=node_modules/@' --exclude naming-convention,external-function,low-level-calls"
   }
 }

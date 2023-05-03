@@ -1,9 +1,9 @@
+import { imgPath } from "../helper-hardhat-config"
 import { NFTStorage, File } from "nft.storage"
 import mime from "mime"
 import path from "path"
 import fs from "fs"
 import "dotenv/config"
-import { imgPath } from "../helper-hardhat-config"
 
 const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY
 
@@ -13,7 +13,7 @@ const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY
  * @param {string} name a name for the NFT
  * @param {string} description a text description for the NFT
  */
-export async function storeNFTs(imagesPath) {
+async function storeNFTs(imagesPath) {
     const fullImagesPath = path.resolve(imagesPath)
     const files = fs.readdirSync(fullImagesPath)
     let responses = []
@@ -23,17 +23,24 @@ export async function storeNFTs(imagesPath) {
         const nftstorage = new NFTStorage({ token: NFT_STORAGE_KEY })
         // We have to start counting from 0 here, and every single upload should have number instead of name as those will be our certs
         const dogName = files[fileIndex].replace(".jpg", "")
-        console.log(`Dog: ${dogName}`)
+        const timeStamp = new Date()
+        const creationDate = timeStamp.toString()
+
+        // Adding metadata to image and uploading to NFT.Storage
         const response = await nftstorage.store({
             image,
             name: dogName,
-            description: `An adorable ${dogName}`,
-            // Currently doesn't support attributes 😔
-            // attributes: [{ trait_type: "cuteness", value: 100 }],
+            description: `Some Certificate Description ${dogName}`,
+            hash: "",
+            author: "Melani Parker",
+            address: "",
+            date: creationDate,
+            certificate: "hash+tokenId(name)",
         })
+
         //@ts-ignore
         responses.push(response)
-        console.log("Images Stored!")
+        console.log("Images With MetaData Uploaded!")
     }
     return responses
 }

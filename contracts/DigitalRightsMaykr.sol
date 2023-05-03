@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import "erc721a/contracts/ERC721A.sol";
+import "./EIPs/ERC4671.sol";
+import "./ERC4671URIStorage.sol";
 
-contract DigitalRightsMaykr is ERC721A {
+contract DigitalRightsMaykr is ERC4671 {
     /** @dev Functions To Implement:
      * mint NFT - our NFT will represent certificate
      * (minting unrestricted)
      * (NFT minter will be immediately it's owner)
-     
-     * transfer of certificates (maybe include marketplace in second contract)
-
-     * created NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.)
 
      * Use ERC4671 for owner to proof he is creator of something
      * Use Simple Contract to manage his nft's if he want to borrow license to someone for certain time to use his invention (and get money for it)
+     * Add chat between wallet's, so users can communicate and exchange certs rights to use
      * 
-     * Revoke for us to remove copyright plagiarism
+     * Revoke for us to remove copyright plagiarism (To be considered)
+     * 
+     * create NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.) (Out of contract)
     */
 
     // NFT Structs
