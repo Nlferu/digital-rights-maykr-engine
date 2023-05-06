@@ -13,6 +13,7 @@ const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY
  * @param {string} name a name for the NFT
  * @param {string} description a text description for the NFT
  */
+/** @dev We will probably need to pass all response @params into below function sent by user via front-end website */
 async function storeNFTs(imagesPath) {
     console.log("Uploading Images and Metadata To NFT.Storage...")
     const fullImagesPath = path.resolve(imagesPath)
