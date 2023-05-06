@@ -1,4 +1,4 @@
-import { imgPath } from "../helper-hardhat-config"
+import { imgPath, uploadedImagesURIs, uploadedMetadataURIs } from "../helper-hardhat-config"
 import { NFTStorage, File } from "nft.storage"
 import mime from "mime"
 import path from "path"
@@ -14,11 +14,14 @@ const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY
  * @param {string} description a text description for the NFT
  */
 async function storeNFTs(imagesPath) {
+    console.log("Uploading Images and Metadata To NFT.Storage...")
     const fullImagesPath = path.resolve(imagesPath)
     const files = fs.readdirSync(fullImagesPath)
-    let responses = []
+    let metadataArray = []
+    let imgArray = []
     for (const fileIndex in files) {
         const image = await fileFromPath(`${fullImagesPath}/${files[fileIndex]}`)
+
         //@ts-ignore
         const nftstorage = new NFTStorage({ token: NFT_STORAGE_KEY })
         // We have to start counting from 0 here, and every single upload should have number instead of name as those will be our certs
@@ -39,10 +42,16 @@ async function storeNFTs(imagesPath) {
         })
 
         //@ts-ignore
-        responses.push(response)
-        console.log("Images With MetaData Uploaded!")
+        metadataArray.push(`https://ipfs.io/ipfs/${response.ipnft}/metadata.json` + "\n")
+        //@ts-ignore
+        imgArray.push(`${response.data.image.toString().replace("ipfs://", "https://ipfs.io/ipfs/")}` + "\n")
+
+        // Saving generated metadata and images URIs in correct files, without any ","
+        fs.writeFileSync(uploadedImagesURIs, imgArray.toString().replace(/,/g, ""))
+        fs.writeFileSync(uploadedMetadataURIs, metadataArray.toString().replace(/,/g, ""))
     }
-    return responses
+    console.log(`Images URIs: ${imgArray}` + "\n" + `Metadata URIs: ${metadataArray}`)
+    console.log("Images Uploaded And Saved!")
 }
 
 /**

@@ -16,3 +16,5 @@ export const networkConfig: networkConfigInfo = {
 
 export const developmentChains = ["hardhat", "localhost"]
 export const imgPath = "../Digital_Rights_Maykr/images"
+export const uploadedImagesURIs = "../Digital_Rights_Maykr/utils/uploadedURIs/uploadedImagesURIs.md"
+export const uploadedMetadataURIs = "../Digital_Rights_Maykr/utils/uploadedURIs/uploadedMetadataURIs.md"
