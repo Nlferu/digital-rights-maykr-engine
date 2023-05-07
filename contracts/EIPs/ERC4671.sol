@@ -104,26 +104,9 @@ abstract contract ERC4671 is IERC4671, IERC4671Metadata, IERC4671Enumerable, ERC
         return _emittedCount;
     }
 
-    /// @return holdersCount Number of token holders
+    /// @return holdersCount Number of token unique holders
     function holdersCount() public view override returns (uint256) {
         return _holdersCount;
-    }
-
-    /// @notice Get the tokenId of a token using its position in the owner's list
-    /// @param owner Address for whom to get the token
-    /// @param index Index of the token
-    /// @return tokenId of the token
-    function tokenOfOwnerByIndex(address owner, uint256 index) public view virtual override returns (uint256) {
-        uint256[] storage ids = _indexedTokenIds[owner];
-        require(index < ids.length, "Token does not exist");
-        return ids[index];
-    }
-
-    /// @notice Get a tokenId by it's index, where 0 <= index < total()
-    /// @param index Index of the token
-    /// @return tokenId of the token
-    function tokenByIndex(uint256 index) public view virtual override returns (uint256) {
-        return index;
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
@@ -217,15 +200,5 @@ abstract contract ERC4671 is IERC4671, IERC4671Metadata, IERC4671Enumerable, ERC
             array[index] = array[array.length - 1];
         }
         array.pop();
-    }
-
-    /** @notice Custom Function */
-    function _exists(uint256 tokenId) internal view virtual returns (bool) {
-        return _tokens[tokenId].owner != address(0);
-    }
-
-    /** @notice Custom Getter */
-    function getOwnerBasedOnIndex(uint256 tokenId) public view returns (address) {
-        return _tokens[tokenId].owner;
     }
 }

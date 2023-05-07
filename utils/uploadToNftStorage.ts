@@ -53,6 +53,8 @@ async function storeNFTs(imagesPath) {
     }
     console.log(`Images URIs: ${imgArray}` + "\n" + `Metadata URIs: ${metadataArray}`)
     console.log("Images Uploaded And Saved!")
+
+    return metadataArray
 }
 
 /**
