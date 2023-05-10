@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import "./EIPs/ERC4671.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./DateTime.sol";
 
 error DRM__NotEnoughETH();
 error DRM__NotOwnerOfToken();
@@ -26,6 +27,9 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
      * Create NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.)
     */
 
+    // Libraries
+    using DateTime for uint256;
+
     // NFT Structs
     struct Certificate {
         string s_tokenIdToURI;
@@ -39,6 +43,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
 
     // NFT Events
     event NFT_Minted(address indexed owner, string uri, uint256 indexed id);
+    event NFT_TokenUriSet(string uri, uint256 indexed id);
 
     constructor() ERC4671("Digital Rights Maykr", "DRM") {}
 
@@ -55,6 +60,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
         cert.s_tokenIdToURI = createdTokenURI;
         // Emiting all data associated with created NFT
         emit NFT_Minted(msg.sender, cert.s_tokenIdToURI, newTokenId);
+        emit NFT_TokenUriSet(cert.s_tokenIdToURI, newTokenId);
     }
 
     /// @notice URI to query to get the token's metadata
@@ -84,9 +90,44 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
         cert.s_tokenIdToBorrowFinish = block.timestamp + lendingTime;
     }
 
+    function conStri(uint256 tokenId, uint256 lendingTime, address borrower) external view returns (string memory) {
+        uint256 endPeriod = block.timestamp + lendingTime;
+        (uint256 year, uint256 month, uint256 day) = DateTime.timestampToDate(endPeriod);
+
+        string memory b = Strings.toHexString(uint256(uint160(msg.sender)), 20);
+        //string memory c = " hereby grant the Borrower: ";
+        string memory d = Strings.toHexString(uint256(uint160(borrower)), 20);
+        //string memory e = " full and unrestricted rights to use piece of work described under tokenId: ";
+        string memory f = Strings.toString(tokenId);
+        //string memory g = " This clause will be valid until end of ";
+        string memory h = Strings.toString(year);
+        string memory i = Strings.toString(month);
+        string memory j = Strings.toString(day);
+
+        string memory clauseStatement = string(
+            abi.encodePacked(
+                "The Artist: ",
+                b,
+                " hereby grant the Borrower: ",
+                d,
+                " full and unrestricted rights to use piece of work described under tokenId: ",
+                f,
+                ". This clause will be valid until end of ",
+                j,
+                " ",
+                i,
+                " ",
+                h,
+                " DDMMYYYY"
+            )
+        );
+        return clauseStatement;
+    }
+
     /// @notice Allows contract owner to revoke token with copyrights plagiarism
     /// @param tokenId Identifier of the copyright
     function revokeCertificate(uint256 tokenId) external onlyOwner {
         _revoke(tokenId);
+        // emit Revoked(token.owner, tokenId); (from ERC4671)
     }
 }
