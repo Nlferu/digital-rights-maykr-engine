@@ -27,23 +27,26 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
      * Create NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.)
     */
 
-    // Libraries
+    /// @dev Libraries
     using DateTime for uint256;
 
-    // NFT Structs
+    /// @dev NFT Structs
     struct Certificate {
         string s_tokenIdToURI;
-        address s_tokenIdToBorrower;
-        uint256 s_tokenIdToBorrowStart;
-        uint256 s_tokenIdToBorrowFinish;
+        string s_tokenIdToClause;
+        address[] s_tokenIdToBorrower;
+        uint256[] s_tokenIdToBorrowStart;
+        uint256[] s_tokenIdToBorrowFinish;
+        mapping(address => bool) s_tokenIdToBorrowerToValidity;
     }
 
-    // NFT Mappings
+    /// @dev NFT Mappings
     mapping(uint256 => Certificate) private certs;
 
-    // NFT Events
-    event NFT_Minted(address indexed owner, string uri, uint256 indexed id);
+    /// @dev NFT Events
     event NFT_TokenUriSet(string uri, uint256 indexed id);
+    event NFT_ClauseCreated(address indexed owner, address indexed borrower, string statement, string expiration, uint256 indexed id);
+    event NFT_CopyrightLended(uint256[] start, uint256[] end, bool validity, uint256 indexed id);
 
     constructor() ERC4671("Digital Rights Maykr", "DRM") {}
 
@@ -59,7 +62,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
         // Assigning new tokenId to given tokenURI and to owner
         cert.s_tokenIdToURI = createdTokenURI;
         // Emiting all data associated with created NFT
-        emit NFT_Minted(msg.sender, cert.s_tokenIdToURI, newTokenId);
+        // emit Minted(owner, tokenId); (from ERC4671)
         emit NFT_TokenUriSet(cert.s_tokenIdToURI, newTokenId);
     }
 
@@ -80,26 +83,35 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
     /// @param borrower address whom will receive permission
     function lendCopyrights(uint256 tokenId, uint256 lendingTime, address borrower) external {
         // Checking if given tokenId exists, not revoked and if caller is owner of given tokenId
+        /// @dev caller should not be owner as this should be available for others
+        /// @dev to call this you have to pay some LINK's
+        /// @dev create function for creator to set his copyright borrowing price!
         if (ownerOf(tokenId) != msg.sender) revert DRM__NotOwnerOfToken();
         if (isValid(tokenId) == false) revert DRM__TokenNotValid();
 
         Certificate storage cert = certs[tokenId];
 
-        cert.s_tokenIdToBorrower = borrower;
-        cert.s_tokenIdToBorrowStart = block.timestamp;
-        cert.s_tokenIdToBorrowFinish = block.timestamp + lendingTime;
+        // Updating Certificate Struct
+        cert.s_tokenIdToBorrower.push(borrower);
+        cert.s_tokenIdToBorrowStart.push(block.timestamp);
+        cert.s_tokenIdToBorrowFinish.push(block.timestamp + lendingTime);
+        cert.s_tokenIdToClause = clause(tokenId, lendingTime, borrower);
+        cert.s_tokenIdToBorrowerToValidity[borrower] = true;
+
+        emit NFT_CopyrightLended(cert.s_tokenIdToBorrowStart, cert.s_tokenIdToBorrowFinish, cert.s_tokenIdToBorrowerToValidity[borrower], tokenId);
     }
 
-    function conStri(uint256 tokenId, uint256 lendingTime, address borrower) external view returns (string memory) {
+    /// @notice Creates clause between NFT(Certificate) creator and borrower
+    /// @param tokenId Identifier of the copyright
+    /// @param lendingTime Time period for, which copyrights will be lended
+    /// @param borrower Address, which will get rights to use piece of art described in copyright
+    function clause(uint256 tokenId, uint256 lendingTime, address borrower) internal returns (string memory) {
         uint256 endPeriod = block.timestamp + lendingTime;
         (uint256 year, uint256 month, uint256 day) = DateTime.timestampToDate(endPeriod);
 
         string memory b = Strings.toHexString(uint256(uint160(msg.sender)), 20);
-        //string memory c = " hereby grant the Borrower: ";
         string memory d = Strings.toHexString(uint256(uint160(borrower)), 20);
-        //string memory e = " full and unrestricted rights to use piece of work described under tokenId: ";
         string memory f = Strings.toString(tokenId);
-        //string memory g = " This clause will be valid until end of ";
         string memory h = Strings.toString(year);
         string memory i = Strings.toString(month);
         string memory j = Strings.toString(day);
@@ -121,6 +133,10 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
                 " DDMMYYYY"
             )
         );
+        string memory expirationDate = string(abi.encodePacked("DDMMYYYY: ", j, " ", i, " ", h));
+
+        emit NFT_ClauseCreated(msg.sender, borrower, clauseStatement, expirationDate, tokenId);
+
         return clauseStatement;
     }
 
@@ -129,5 +145,24 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
     function revokeCertificate(uint256 tokenId) external onlyOwner {
         _revoke(tokenId);
         // emit Revoked(token.owner, tokenId); (from ERC4671)
+    }
+
+    /// @notice Getters
+    function getCertsBorrowers(uint256 tokenId) external view returns (address[] memory) {
+        Certificate storage cert = certs[tokenId];
+
+        return cert.s_tokenIdToBorrower;
+    }
+
+    function getValidity(uint256 tokenId, address borrower) external view returns (bool) {
+        Certificate storage cert = certs[tokenId];
+
+        return cert.s_tokenIdToBorrowerToValidity[borrower];
+    }
+
+    function getClause(uint256 tokenId) external view returns (string memory) {
+        Certificate storage cert = certs[tokenId];
+
+        return cert.s_tokenIdToClause;
     }
 }
