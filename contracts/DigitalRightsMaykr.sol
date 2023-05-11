@@ -6,13 +6,19 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./DateTime.sol";
 
 error DRM__NotEnoughETH();
-error DRM__NotOwnerOfToken();
+error DRM__NotTokenOwner();
 error DRM__TokenNotValid();
+error DRM__TokenNotBorrowable();
+error DRM__AddressHasRightsAlready();
+error DRM__TokenAlreadyAllowed();
+error DRM__TokenAlreadyBlocked();
+error DRM__LicenseDoesNotExistsForThisUser();
+error DRM__LicenseExpiredForThisUser();
 
 contract DigitalRightsMaykr is ERC4671, Ownable {
     /** @dev How it should work from start to end:
      
-    @notice Below have to be done off-chain to receive cert image
+    @notice Below have to be done off-chain to receive cert image in order to create tokenURI
         1. User is filling certificate required fields (inclusing file hash encoding)
         2. Certificate image is being created with all filled data
         3. Certificate image is being uploaded into IPFS
@@ -33,10 +39,11 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
     /// @dev NFT Structs
     struct Certificate {
         string s_tokenIdToURI;
-        string s_tokenIdToClause;
+        bool s_tokenIdToBorrowable;
         address[] s_tokenIdToBorrower;
         uint256[] s_tokenIdToBorrowStart;
-        uint256[] s_tokenIdToBorrowFinish;
+        mapping(address => uint256) s_tokenIdToBorrowFinish;
+        mapping(address => string) s_tokenIdToBorrowerToClause;
         mapping(address => bool) s_tokenIdToBorrowerToValidity;
     }
 
@@ -46,7 +53,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
     /// @dev NFT Events
     event NFT_TokenUriSet(string uri, uint256 indexed id);
     event NFT_ClauseCreated(address indexed owner, address indexed borrower, string statement, string expiration, uint256 indexed id);
-    event NFT_CopyrightLended(uint256[] start, uint256[] end, bool validity, uint256 indexed id);
+    event NFT_CopyrightLended(uint256[] start, uint256 indexed end, bool validity, uint256 indexed id);
 
     constructor() ERC4671("Digital Rights Maykr", "DRM") {}
 
@@ -67,7 +74,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
     }
 
     /// @notice URI to query to get the token's metadata
-    /// @param tokenId Identifier of the token
+    /// @param tokenId Identifier of certificate
     /// @return URI for the token
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         // Checking if given tokenId exists
@@ -77,35 +84,36 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
         return cert.s_tokenIdToURI;
     }
 
-    /// @notice Gives permission to borrower to use copyrights assigned to tokenId
-    /// @param tokenId Identifier of the copyright
+    /// @notice Gives permission to borrower to use copyrights assigned to specific certificate marked by tokenId
+    /// @param tokenId Identifier of certificate
     /// @param lendingTime time for how long permission will persist
     /// @param borrower address whom will receive permission
-    function lendCopyrights(uint256 tokenId, uint256 lendingTime, address borrower) external {
-        // Checking if given tokenId exists, not revoked and if caller is owner of given tokenId
+    function getRights(uint256 tokenId, uint256 lendingTime, address borrower) external {
+        // Checking if given tokenId exists, not revoked and if owner posted it for lending
         /// @dev caller should not be owner as this should be available for others
-        /// @dev to call this you have to pay some LINK's
+        /// @dev to call this you have to pay some LINK's, ower can lend copyrights
         /// @dev create function for creator to set his copyright borrowing price!
-        if (ownerOf(tokenId) != msg.sender) revert DRM__NotOwnerOfToken();
-        if (isValid(tokenId) == false) revert DRM__TokenNotValid();
-
         Certificate storage cert = certs[tokenId];
+        if (ownerOf(tokenId) == borrower || cert.s_tokenIdToBorrowerToValidity[borrower]) revert DRM__AddressHasRightsAlready();
+        if (!cert.s_tokenIdToBorrowable) revert DRM__TokenNotBorrowable();
+        if (isValid(tokenId) == false) revert DRM__TokenNotValid();
 
         // Updating Certificate Struct
         cert.s_tokenIdToBorrower.push(borrower);
         cert.s_tokenIdToBorrowStart.push(block.timestamp);
-        cert.s_tokenIdToBorrowFinish.push(block.timestamp + lendingTime);
-        cert.s_tokenIdToClause = clause(tokenId, lendingTime, borrower);
+        cert.s_tokenIdToBorrowFinish[borrower] = (block.timestamp + lendingTime);
+        cert.s_tokenIdToBorrowerToClause[borrower] = createClause(tokenId, lendingTime, borrower);
         cert.s_tokenIdToBorrowerToValidity[borrower] = true;
 
-        emit NFT_CopyrightLended(cert.s_tokenIdToBorrowStart, cert.s_tokenIdToBorrowFinish, cert.s_tokenIdToBorrowerToValidity[borrower], tokenId);
+        emit NFT_CopyrightLended(cert.s_tokenIdToBorrowStart, cert.s_tokenIdToBorrowFinish[borrower], cert.s_tokenIdToBorrowerToValidity[borrower], tokenId);
     }
 
     /// @notice Creates clause between NFT(Certificate) creator and borrower
-    /// @param tokenId Identifier of the copyright
+    /// @param tokenId Identifier of certificate
     /// @param lendingTime Time period for, which copyrights will be lended
     /// @param borrower Address, which will get rights to use piece of art described in copyright
-    function clause(uint256 tokenId, uint256 lendingTime, address borrower) internal returns (string memory) {
+    /// @return Complete Clause Statement Filled With Correct Data
+    function createClause(uint256 tokenId, uint256 lendingTime, address borrower) internal returns (string memory) {
         uint256 endPeriod = block.timestamp + lendingTime;
         (uint256 year, uint256 month, uint256 day) = DateTime.timestampToDate(endPeriod);
 
@@ -140,29 +148,82 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
         return clauseStatement;
     }
 
+    /// @notice Allows owner of tokenId(Certificate) to make this token borrowable by other users
+    /// @param tokenId Identifier of certificate
+    function allowLending(uint256 tokenId) external {
+        // Checking if given tokenId exists and if function is called by token owner
+        Certificate storage cert = certs[tokenId];
+        _getTokenOrRevert(tokenId);
+        if (ownerOf(tokenId) != msg.sender) revert DRM__NotTokenOwner();
+        if (cert.s_tokenIdToBorrowable == true) revert DRM__TokenAlreadyAllowed();
+
+        cert.s_tokenIdToBorrowable = true;
+    }
+
+    /// @notice Allows owner of tokenId(Certificate) to make this token unborrowable
+    /// @param tokenId Identifier of certificate
+    function blockLending(uint256 tokenId) external {
+        // Checking if given tokenId exists and if function is called by token owner
+        Certificate storage cert = certs[tokenId];
+        _getTokenOrRevert(tokenId);
+        if (ownerOf(tokenId) != msg.sender) revert DRM__NotTokenOwner();
+        if (cert.s_tokenIdToBorrowable == false) revert DRM__TokenAlreadyBlocked();
+
+        cert.s_tokenIdToBorrowable = false;
+    }
+
     /// @notice Allows contract owner to revoke token with copyrights plagiarism
-    /// @param tokenId Identifier of the copyright
+    /// @param tokenId Identifier of certificate
     function revokeCertificate(uint256 tokenId) external onlyOwner {
+        // Throws error if tokenId does not exists
         _revoke(tokenId);
         // emit Revoked(token.owner, tokenId); (from ERC4671)
     }
 
+    /// @notice Modifiers
+    modifier licenseExpirationCheck(uint256 tokenId, address borrower) {
+        Certificate storage cert = certs[tokenId];
+        _getTokenOrRevert(tokenId);
+        //if(cert.s_tokenIdToBorrower is borrower) revert DRM__LicenseDoesNotExistsForThisUser();
+
+        if (cert.s_tokenIdToBorrowFinish[borrower] > block.timestamp) {
+            revert DRM__LicenseExpiredForThisUser();
+        }
+        _;
+    }
+
     /// @notice Getters
+    /// @notice Returns all active borrowers of specified certificate(tokenId)
+    /// @param tokenId Identifier of certificate
     function getCertsBorrowers(uint256 tokenId) external view returns (address[] memory) {
         Certificate storage cert = certs[tokenId];
 
         return cert.s_tokenIdToBorrower;
     }
 
+    /// @notice Tells if given borrower is allowed to use given certificate(tokenId)
+    /// @param tokenId Identifier of certificate
+    /// @param borrower Address, which has rights to use specified piece of art
     function getValidity(uint256 tokenId, address borrower) external view returns (bool) {
         Certificate storage cert = certs[tokenId];
 
         return cert.s_tokenIdToBorrowerToValidity[borrower];
     }
 
-    function getClause(uint256 tokenId) external view returns (string memory) {
+    /// @notice Returns clause for certain tokenId and borrower
+    /// @param tokenId Identifier of certificate
+    /// @param borrower Address, which has rights to use specified piece of art
+    function getClause(uint256 tokenId, address borrower) external view returns (string memory) {
         Certificate storage cert = certs[tokenId];
 
-        return cert.s_tokenIdToClause;
+        return cert.s_tokenIdToBorrowerToClause[borrower];
+    }
+
+    /// @notice Tells if given certificate(tokenId) is allowed to be borrowed by other users
+    /// @param tokenId Identifier of certificate
+    function getLendingStatus(uint256 tokenId) external view returns (bool) {
+        Certificate storage cert = certs[tokenId];
+
+        return cert.s_tokenIdToBorrowable;
     }
 }
