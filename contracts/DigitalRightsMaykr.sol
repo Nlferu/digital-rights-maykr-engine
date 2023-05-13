@@ -184,6 +184,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable {
     }
 
     /// @dev This function has to be called by chainlink keeper
+    // Function is not setting false at 2nd time -> tests required
     function licenseStatusUpdater(uint256 tokenId, address borrower) external {
         _getTokenOrRevert(tokenId);
         Certificate storage cert = certs[tokenId];
