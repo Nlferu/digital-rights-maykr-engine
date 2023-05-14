@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
+/// @dev Check contract on Remix and fix bugs with lending certificates!
+
 import "./EIPs/ERC4671.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./DateTime.sol";
