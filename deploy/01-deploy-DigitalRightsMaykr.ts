@@ -5,20 +5,23 @@ import verify from "../utils/verify"
 
 const deployDigitalRightsMaykr: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const { getNamedAccounts, deployments, network } = hre
-    const { deploy } = deployments
+    const { deploy, log } = deployments
     const { deployer } = await getNamedAccounts()
 
     const digitalRightsMaykr = await deploy("DigitalRightsMaykr", {
         from: deployer,
-        args: [],
+        args: [networkConfig[network.config.chainId!]["keepersUpdateInterval"]],
         log: true,
-        waitConfirmations: networkConfig[network.name].blockConfirmations || 1,
+        waitConfirmations: networkConfig[network.config.chainId!]["blockConfirmations"] || 1,
     })
 
     /** @dev Verify */
     if (!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
         await verify(digitalRightsMaykr.address, [])
     }
+
+    const networkName = network.name == "hardhat" ? "localhost" : network.name
+    log(`Working on ${networkName} network...`)
 }
 
 export default deployDigitalRightsMaykr

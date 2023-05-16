@@ -1,17 +1,34 @@
 export interface networkConfigItem {
+    name?: string
+    keepersUpdateInterval?: string
     blockConfirmations?: number
 }
 
 export interface networkConfigInfo {
-    [key: string]: networkConfigItem
+    [key: number]: networkConfigItem
 }
 
 export const networkConfig: networkConfigInfo = {
-    localhost: { blockConfirmations: 1 },
-    hardhat: { blockConfirmations: 1 },
-    sepolia: { blockConfirmations: 6 },
-    goerli: { blockConfirmations: 6 },
-    mainnet: { blockConfirmations: 6 },
+    31337: {
+        name: "localhost",
+        keepersUpdateInterval: "30",
+        blockConfirmations: 1,
+    },
+    11155111: {
+        name: "sepolia",
+        keepersUpdateInterval: "30",
+        blockConfirmations: 6,
+    },
+    5: {
+        name: "goerli",
+        keepersUpdateInterval: "30",
+        blockConfirmations: 6,
+    },
+    1: {
+        name: "mainnet",
+        keepersUpdateInterval: "30",
+        blockConfirmations: 6,
+    },
 }
 
 export const developmentChains = ["hardhat", "localhost"]
