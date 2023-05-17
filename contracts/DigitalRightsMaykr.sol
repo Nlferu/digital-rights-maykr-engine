@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./DateTime.sol";
+import "hardhat/console.sol";
 
 error DRM__NotEnoughETH();
 error DRM__NotTokenOwner();
@@ -219,12 +220,19 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         bool hasCerts = tokenId > 0;
         bool hasBorrowable = false;
         bool hasBorrowers = false;
+        //uint256[] memory mak = new uint256[](tokenId);
 
         for (uint i = 0; i < tokenId; i++) {
             Certificate storage cert = s_certs[i];
+            if (cert.tokenIdToBorrowable == true) {
+                hasBorrowable = true;
+            }
 
-            hasBorrowable = cert.tokenIdToBorrowable == true;
-            hasBorrowers = cert.tokenIdToBorrowers.length > 0;
+            //mak[i] = cert.tokenIdToBorrowers.length;
+
+            if (cert.tokenIdToBorrowers.length > 0) {
+                hasBorrowers = true;
+            }
         }
 
         upkeepNeeded = (timePassed && hasCerts && hasBorrowable && hasBorrowers);
@@ -240,18 +248,20 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
             revert DRM__UpkeepNotNeeded();
         }
 
-        uint256 tokenId = emittedCount();
+        uint256[] memory mak = new uint256[](emittedCount());
 
-        for (uint i = 0; i < tokenId - 1; i++) {
-            Certificate storage cert = s_certs[i];
-            if (cert.tokenIdToBorrowable == true) {
-                for (uint j = 0; j < cert.tokenIdToBorrowers.length; j++) {
-                    if (cert.tokenIdToBorrowToEnd[cert.tokenIdToBorrowers[j]] < block.timestamp) {
-                        licenseStatusUpdater(j, cert.tokenIdToBorrowers[j]);
+        for (uint tokenId = 0; tokenId < emittedCount(); tokenId++) {
+            Certificate storage cert = s_certs[tokenId];
+            mak[tokenId] = cert.tokenIdToBorrowers.length;
+            console.log("UPOO: ", tokenId, "mak[i]", mak[tokenId]);
+            if (cert.tokenIdToBorrowable == true && mak[tokenId] > 0) {
+                for (uint borrower = 0; borrower < mak[tokenId]; borrower++) {
+                    if (cert.tokenIdToBorrowToEnd[cert.tokenIdToBorrowers[borrower]] < block.timestamp) {
+                        console.log("Upkeep Performed For TokenId: ", tokenId, "for borrower", cert.tokenIdToBorrowers[borrower]);
+                        console.log("Borrower Index: ", borrower);
+                        licenseStatusUpdater(tokenId, cert.tokenIdToBorrowers[borrower]);
                     }
                 }
-            } else {
-                continue;
             }
         }
     }
@@ -363,17 +373,25 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return s_proceeds[lender];
     }
 
-    function Viewer() external view returns (bool[] memory) {
+    function Viewer() external view returns (bool[] memory, uint256[] memory, string memory, uint256[] memory) {
         uint256 tokenId = emittedCount();
 
         bool[] memory ret = new bool[](tokenId);
+        uint256[] memory mak = new uint256[](tokenId);
+        string memory makrela;
+        uint256[] memory rak;
 
         for (uint i = 0; i < tokenId; i++) {
             Certificate storage cert = s_certs[i];
             if (cert.tokenIdToBorrowable == true) {
                 ret[i] = cert.tokenIdToBorrowable;
+                mak[i] = cert.tokenIdToBorrowers.length;
+                makrela = "lama";
+                for (uint j = 0; j < cert.tokenIdToBorrowers.length; j++) {
+                    console.log("Console: ", mak[i]);
+                }
             }
         }
-        return ret;
+        return (ret, mak, makrela, rak);
     }
 }
