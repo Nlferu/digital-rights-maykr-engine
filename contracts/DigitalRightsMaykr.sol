@@ -2,6 +2,7 @@
 pragma solidity 0.8.18;
 
 /// @dev Check contract on Remix and fix bugs with lending certificates!
+/// @dev Check sponsors solutions to implement
 
 import "./EIPs/ERC4671.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -17,7 +18,7 @@ error DRM__AddressHasRightsAlready();
 error DRM__TokenAlreadyAllowed();
 error DRM__TokenAlreadyBlocked();
 error DRM__LicenseDoesNotExistsForThisUser();
-error DRM__LicenseExpiredForThisUser();
+error DRM__LicenseNotExpiredYetForThisUser();
 error DRM__LicenseDidNotExpiredYet();
 error DRM__NothingToWithdraw();
 error DRM__TransferFailed();
@@ -54,7 +55,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         uint256 tokenIdToPrice;
         bool tokenIdToBorrowable;
         address[] tokenIdToBorrowers;
-        //mapping(address => uint256) s_tokenIdToBorrowToStart;
         // mapping(address => uint256[]) s_tokenIdToBorrowerToCerts; -> create to read all borrowed tokenId's
         mapping(address => uint256) tokenIdToBorrowToEnd;
         mapping(address => string) tokenIdToBorrowerToClause;
@@ -122,9 +122,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
         // Updating Certificate Struct
         cert.tokenIdToBorrowers.push(borrower);
-        //cert.s_tokenIdToBorrowToStart[borrower] = block.timestamp;
         cert.tokenIdToBorrowToEnd[borrower] = (block.timestamp + lendingTime);
-        cert.tokenIdToBorrowerToClause[borrower] = createClause(tokenId, lendingTime, borrower); // Consider adding it to remove when license status updated after expiration
+        cert.tokenIdToBorrowerToClause[borrower] = createClause(tokenId, lendingTime, borrower);
         cert.tokenIdToBorrowerToValidity[borrower] = true;
         s_proceeds[ownerOf(tokenId)] += msg.value;
 
@@ -243,12 +242,16 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
         uint256 tokenId = emittedCount();
 
-        for (uint i = 0; i < tokenId; i++) {
+        for (uint i = 0; i < tokenId - 1; i++) {
             Certificate storage cert = s_certs[i];
             if (cert.tokenIdToBorrowable == true) {
                 for (uint j = 0; j < cert.tokenIdToBorrowers.length; j++) {
-                    licenseStatusUpdater(j, cert.tokenIdToBorrowers[j]);
+                    if (cert.tokenIdToBorrowToEnd[cert.tokenIdToBorrowers[j]] < block.timestamp) {
+                        licenseStatusUpdater(j, cert.tokenIdToBorrowers[j]);
+                    }
                 }
+            } else {
+                continue;
             }
         }
     }
@@ -258,7 +261,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     /// @param tokenId Identifier of certificate
     /// @param borrower Address, which has rights to use specific piece of art described in certificate
     // Chainlink Keeper to be added
-    function licenseStatusUpdater(uint256 tokenId, address borrower) internal {
+    function licenseStatusUpdater(uint256 tokenId, address borrower) internal licenseExpirationCheck(tokenId, borrower) {
         Certificate storage cert = s_certs[tokenId];
         _getTokenOrRevert(tokenId);
         //if (cert.tokenIdToBorrowToEnd[borrower] > block.timestamp) revert DRM__LicenseDidNotExpiredYet(); -> this will be checked by chainlink keeper
@@ -266,7 +269,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         // Removing borrower from array of borrowers for given tokenId
         for (uint i = 0; i < cert.tokenIdToBorrowers.length; i++) {
             if (cert.tokenIdToBorrowers[i] == borrower) {
-                // Swapping borrower to be removed with last array element
+                // Swapping borrower to be removed with last borrower in array
                 cert.tokenIdToBorrowers[i] = cert.tokenIdToBorrowers[cert.tokenIdToBorrowers.length - 1];
                 cert.tokenIdToBorrowers.pop();
             }
@@ -302,8 +305,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         Certificate storage cert = s_certs[tokenId];
         //if(cert.s_tokenIdToBorrower is borrower) revert DRM__LicenseDoesNotExistsForThisUser();
 
-        if (cert.tokenIdToBorrowToEnd[borrower] < block.timestamp) {
-            revert DRM__LicenseExpiredForThisUser();
+        if (cert.tokenIdToBorrowToEnd[borrower] > block.timestamp) {
+            revert DRM__LicenseNotExpiredYetForThisUser();
         }
         _;
     }
@@ -321,7 +324,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @notice Returns all active borrowers of specific certificate(tokenId)
     /// @param tokenId Identifier of certificate
-    function gets_CertsBorrowers(uint256 tokenId) external view returns (address[] memory) {
+    function getCertsBorrowers(uint256 tokenId) external view returns (address[] memory) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToBorrowers;
@@ -350,7 +353,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return (cert.tokenIdToBorrowToEnd[borrower] < block.timestamp) ? 0 : (cert.tokenIdToBorrowToEnd[borrower] - block.timestamp);
     }
 
-    function getTokenPrice(uint256 tokenId) external view returns (uint256) {
+    function getCertificatePrice(uint256 tokenId) external view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToPrice;
@@ -358,5 +361,19 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     function getProceeds(address lender) external view returns (uint256) {
         return s_proceeds[lender];
+    }
+
+    function Viewer() external view returns (bool[] memory) {
+        uint256 tokenId = emittedCount();
+
+        bool[] memory ret = new bool[](tokenId);
+
+        for (uint i = 0; i < tokenId; i++) {
+            Certificate storage cert = s_certs[i];
+            if (cert.tokenIdToBorrowable == true) {
+                ret[i] = cert.tokenIdToBorrowable;
+            }
+        }
+        return ret;
     }
 }
