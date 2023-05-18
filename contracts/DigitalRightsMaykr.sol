@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./DateTime.sol";
-import "hardhat/console.sol";
 
 error DRM__NotEnoughETH();
 error DRM__NotTokenOwner();
@@ -241,25 +240,25 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     }
 
     /// @notice Once checkUpkeep() returns "true" this function is called to execute licenseStatusUpdater() function
+    /// @notice It iterates thru all tokenId's and borrowers per those tokens to remove all licenses that have expired
     function performUpkeep(bytes calldata /* performData */) external override {
         (bool upkeepNeeded, ) = checkUpkeep("");
 
-        if (!upkeepNeeded) {
-            revert DRM__UpkeepNotNeeded();
-        }
+        if (!upkeepNeeded) revert DRM__UpkeepNotNeeded();
 
-        uint256[] memory mak = new uint256[](emittedCount());
+        uint256[] memory borrowersLength = new uint256[](emittedCount());
 
         for (uint tokenId = 0; tokenId < emittedCount(); tokenId++) {
             Certificate storage cert = s_certs[tokenId];
-            mak[tokenId] = cert.tokenIdToBorrowers.length;
-            console.log("UPOO: ", tokenId, "mak[i]", mak[tokenId]);
-            if (cert.tokenIdToBorrowable == true && mak[tokenId] > 0) {
-                for (uint borrower = 0; borrower < mak[tokenId]; borrower++) {
+            // Getting correct borrowers array length per tokenId
+            borrowersLength[tokenId] = cert.tokenIdToBorrowers.length;
+
+            if (cert.tokenIdToBorrowable == true && borrowersLength[tokenId] > 0) {
+                for (uint borrower = borrowersLength[tokenId] - 1; borrower >= 0; borrower--) {
                     if (cert.tokenIdToBorrowToEnd[cert.tokenIdToBorrowers[borrower]] < block.timestamp) {
-                        console.log("Upkeep Performed For TokenId: ", tokenId, "for borrower", cert.tokenIdToBorrowers[borrower]);
-                        console.log("Borrower Index: ", borrower);
                         licenseStatusUpdater(tokenId, cert.tokenIdToBorrowers[borrower]);
+
+                        if (borrower == 0) break;
                     }
                 }
             }
@@ -371,27 +370,5 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     function getProceeds(address lender) external view returns (uint256) {
         return s_proceeds[lender];
-    }
-
-    function Viewer() external view returns (bool[] memory, uint256[] memory, string memory, uint256[] memory) {
-        uint256 tokenId = emittedCount();
-
-        bool[] memory ret = new bool[](tokenId);
-        uint256[] memory mak = new uint256[](tokenId);
-        string memory makrela;
-        uint256[] memory rak;
-
-        for (uint i = 0; i < tokenId; i++) {
-            Certificate storage cert = s_certs[i];
-            if (cert.tokenIdToBorrowable == true) {
-                ret[i] = cert.tokenIdToBorrowable;
-                mak[i] = cert.tokenIdToBorrowers.length;
-                makrela = "lama";
-                for (uint j = 0; j < cert.tokenIdToBorrowers.length; j++) {
-                    console.log("Console: ", mak[i]);
-                }
-            }
-        }
-        return (ret, mak, makrela, rak);
     }
 }
