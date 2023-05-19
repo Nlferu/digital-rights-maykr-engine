@@ -72,6 +72,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     event ProceedsWithdrawal(uint256 indexed amount, address indexed lender, bool indexed transfer);
     event LendingAllowed(uint256 indexed price, uint256 indexed id);
     event LendingBlocked(uint256 indexed id);
+    event ExpiredLicensesRemoved(bool indexed performed);
+    event LicenseRemoved(address indexed borrower, uint256 indexed id);
 
     constructor(uint256 interval) ERC4671("Digital Rights Maykr", "DRM") {
         i_interval = interval;
@@ -215,26 +217,37 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     function checkUpkeep(bytes memory /* checkData */) public view override returns (bool upkeepNeeded, bytes memory /* performData */) {
         uint256 tokenId = emittedCount();
 
+        // Array to store borrowers amount per tokenId
+        uint256[] memory borrowersLength = new uint256[](tokenId);
+
         bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
         bool hasCerts = tokenId > 0;
         bool hasBorrowable = false;
         bool hasBorrowers = false;
-        //uint256[] memory mak = new uint256[](tokenId);
+        bool hasCertsToExpire = false;
 
         for (uint i = 0; i < tokenId; i++) {
             Certificate storage cert = s_certs[i];
+            borrowersLength[i] = cert.tokenIdToBorrowers.length;
             if (cert.tokenIdToBorrowable == true) {
                 hasBorrowable = true;
             }
 
-            //mak[i] = cert.tokenIdToBorrowers.length;
-
             if (cert.tokenIdToBorrowers.length > 0) {
                 hasBorrowers = true;
             }
+
+            for (uint borrower = 0; borrower < borrowersLength[i]; borrower++) {
+                if (cert.tokenIdToBorrowToEnd[cert.tokenIdToBorrowers[borrower]] < block.timestamp) {
+                    hasCertsToExpire = true;
+                    break;
+                }
+            }
+
+            if (hasBorrowable && hasBorrowers && hasCertsToExpire) break;
         }
 
-        upkeepNeeded = (timePassed && hasCerts && hasBorrowable && hasBorrowers);
+        upkeepNeeded = (timePassed && hasCerts && hasBorrowable && hasBorrowers && hasCertsToExpire);
 
         return (upkeepNeeded, "0x0");
     }
@@ -246,23 +259,26 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
         if (!upkeepNeeded) revert DRM__UpkeepNotNeeded();
 
+        // Array to store borrowers amount per tokenId
         uint256[] memory borrowersLength = new uint256[](emittedCount());
 
         for (uint tokenId = 0; tokenId < emittedCount(); tokenId++) {
             Certificate storage cert = s_certs[tokenId];
-            // Getting correct borrowers array length per tokenId
+            // Updating borrowers array length per tokenId
             borrowersLength[tokenId] = cert.tokenIdToBorrowers.length;
 
             if (cert.tokenIdToBorrowable == true && borrowersLength[tokenId] > 0) {
                 for (uint borrower = borrowersLength[tokenId] - 1; borrower >= 0; borrower--) {
                     if (cert.tokenIdToBorrowToEnd[cert.tokenIdToBorrowers[borrower]] < block.timestamp) {
                         licenseStatusUpdater(tokenId, cert.tokenIdToBorrowers[borrower]);
-
-                        if (borrower == 0) break;
                     }
+                    // Preventing loop error with negative counter value
+                    if (borrower == 0) break;
                 }
             }
         }
+
+        emit ExpiredLicensesRemoved(true);
     }
 
     /// @dev This function has to be called by chainlink keeper once a day
@@ -278,6 +294,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         // Removing borrower from array of borrowers for given tokenId
         for (uint i = 0; i < cert.tokenIdToBorrowers.length; i++) {
             if (cert.tokenIdToBorrowers[i] == borrower) {
+                emit LicenseRemoved(borrower, tokenId);
                 // Swapping borrower to be removed with last borrower in array
                 cert.tokenIdToBorrowers[i] = cert.tokenIdToBorrowers[cert.tokenIdToBorrowers.length - 1];
                 cert.tokenIdToBorrowers.pop();
@@ -285,7 +302,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         }
 
         cert.tokenIdToBorrowerToValidity[borrower] = false;
-        //revert NFT_LicenseUpdated();
     }
 
     /// @notice Allows lenders to withdraw their proceeds
@@ -320,16 +336,16 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         _;
     }
 
+    /// @notice Getters
+
     /// @notice Tells if given borrower is allowed to use given certificate(tokenId)
     /// @param tokenId Identifier of certificate
     /// @param borrower Address, which has rights to use specific piece of art described in certificate
-    function licenseValidityChecker(uint256 tokenId, address borrower) external view returns (bool) {
+    function getLicenseValidity(uint256 tokenId, address borrower) external view returns (bool) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToBorrowerToValidity[borrower];
     }
-
-    /// @notice Getters
 
     /// @notice Returns all active borrowers of specific certificate(tokenId)
     /// @param tokenId Identifier of certificate
@@ -350,7 +366,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @notice Tells if given certificate(tokenId) is allowed to be borrowed by other users
     /// @param tokenId Identifier of certificate
-    function getLicenseStatus(uint256 tokenId) external view returns (bool) {
+    function getLendingStatus(uint256 tokenId) external view returns (bool) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToBorrowable;
