@@ -15,7 +15,7 @@ error DRM__TokenNotBorrowable();
 error DRM__AddressHasRightsAlready();
 error DRM__TokenAlreadyAllowed();
 error DRM__TokenAlreadyBlocked();
-error DRM__LicenseDoesNotExistsForThisUser(); //
+error DRM__LicenseDoesNotExistsForThisUser();
 error DRM__LicenseNotExpiredYetForThisUser();
 error DRM__NothingToWithdraw();
 error DRM__TransferFailed();
@@ -316,6 +316,17 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
         emit ProceedsWithdrawal(amount, msg.sender, success);
     }
+
+    /// @dev UNDER DEVELOPMENT --------------------------------------------------------------
+
+    // Below function wont be probably necessary to operate using proceeds from contract
+    /// @notice Allows lenders to stake proceeds on Verse instead of withdrawing them
+    function stakeProceeds() external {}
+
+    /// @notice Allows lenders to unstake proceeds from Verse
+    function unStakeProceeds() external {}
+
+    /// @dev UNDER DEVELOPMENT --------------------------------------------------------------
 
     /// @notice Modifiers
 
