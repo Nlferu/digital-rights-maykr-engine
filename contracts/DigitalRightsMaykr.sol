@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-/// @dev Check contract on Remix and fix bugs with lending certificates!
-/// @dev Check sponsors solutions to implement
-
 import "./EIPs/ERC4671.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./DateTime.sol";
 
+/// @dev Errors
 error DRM__NotEnoughETH();
 error DRM__NotTokenOwner();
 error DRM__TokenNotValid();
@@ -17,9 +15,8 @@ error DRM__TokenNotBorrowable();
 error DRM__AddressHasRightsAlready();
 error DRM__TokenAlreadyAllowed();
 error DRM__TokenAlreadyBlocked();
-error DRM__LicenseDoesNotExistsForThisUser();
+error DRM__LicenseDoesNotExistsForThisUser(); //
 error DRM__LicenseNotExpiredYetForThisUser();
-error DRM__LicenseDidNotExpiredYet();
 error DRM__NothingToWithdraw();
 error DRM__TransferFailed();
 error DRM__UpkeepNotNeeded();
@@ -28,15 +25,17 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     /** @dev How it should work from start to end:
      
     @notice Below have to be done off-chain to receive cert image in order to create tokenURI
-        1. User is filling certificate required fields (inclusing file hash encoding)
+        1. User is filling certificate required fields (including file hash encoding)
         2. Certificate image is being created with all filled data
         3. Certificate image is being uploaded into IPFS
-        4. We have now created tokenURI to use in order to create our NFT
-    @notice Below have to be done on-chain to create NFT, which will be our cert
-        5. User is minting NFT (tokenId) with assigned tokenURI (option will show up on front after creating cert image)
-        6. User can now borrow rights to use copyrights from his NFT (for certain time)
-        7. Add option to revoke tokenId if it is confirmed as plagiarism
-        8. Add chat option between wallets to communicate on chain
+        4. We have now created tokenURI to use in order to create our certificate (NFT)
+    @notice Below have to be done on-chain to create NFT, which will be our certificate
+        5. User is minting NFT (tokenId) with assigned tokenURI (option will show up on front-end after creating certificate image)
+        6. Owner of created certificate can allow lending it for some ETH for specified time
+        7. Another user's can now borrow rights to use invention described under specific tokenId (for certain time)
+        8. We as contract owner's have only right to revoke tokenId if it is confirmed as plagiarism
+        
+        *. Add chat option between wallets to communicate on chain ??? To be considered as there is not much time left till hackathon end
 
      @notice Off-Chain Idea 
      * Create NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.)
@@ -55,7 +54,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         uint256 tokenIdToPrice;
         bool tokenIdToBorrowable;
         address[] tokenIdToBorrowers;
-        // mapping(address => uint256[]) s_tokenIdToBorrowerToCerts; -> create to read all borrowed tokenId's
         mapping(address => uint256) tokenIdToBorrowToEnd;
         mapping(address => string) tokenIdToBorrowerToClause;
         mapping(address => bool) tokenIdToBorrowerToValidity;
@@ -80,8 +78,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         s_lastTimeStamp = block.timestamp;
     }
 
-    /// @notice Mint a new token
-    /// @param createdTokenURI URI to assign for minted token
+    /// @notice Mint a new certificate (Token/NFT)
+    /// @param createdTokenURI URI to assign for minted certificate
     function mintNFT(string memory createdTokenURI) external {
         // Counting s_certs from 0 per total created
         uint256 newTokenId = emittedCount();
@@ -96,9 +94,9 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         emit TokenUriSet(cert.tokenIdToURI, newTokenId);
     }
 
-    /// @notice URI to query to get the token's metadata
+    /// @notice URI to query to get the certificate's metadata
     /// @param tokenId Identifier of certificate
-    /// @return URI for the token
+    /// @return URI for the certificate
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         // Checking if given tokenId exists
         _getTokenOrRevert(tokenId);
@@ -113,9 +111,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     /// @param borrower address whom will receive permission
     function buyLicense(uint256 tokenId, uint256 lendingTime, address borrower) external payable nonReentrant {
         // Checking if given tokenId exists, not revoked and if owner posted it for lending
-        /// @dev caller should not be owner as this should be available for others
-        /// @dev to call this you have to pay some ETH, ower can lend copyrights
-        /// @dev create function for creator to set his copyright borrowing price!
         Certificate storage cert = s_certs[tokenId];
         if (ownerOf(tokenId) == borrower || cert.tokenIdToBorrowerToValidity[borrower]) revert DRM__AddressHasRightsAlready();
         if (!cert.tokenIdToBorrowable) revert DRM__TokenNotBorrowable();
@@ -287,9 +282,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     /// @param borrower Address, which has rights to use specific piece of art described in certificate
     // Chainlink Keeper to be added
     function licenseStatusUpdater(uint256 tokenId, address borrower) internal licenseExpirationCheck(tokenId, borrower) {
-        Certificate storage cert = s_certs[tokenId];
         _getTokenOrRevert(tokenId);
-        //if (cert.tokenIdToBorrowToEnd[borrower] > block.timestamp) revert DRM__LicenseDidNotExpiredYet(); -> this will be checked by chainlink keeper
+        Certificate storage cert = s_certs[tokenId];
 
         // Removing borrower from array of borrowers for given tokenId
         for (uint i = 0; i < cert.tokenIdToBorrowers.length; i++) {
@@ -324,15 +318,17 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     }
 
     /// @notice Modifiers
-    /// @dev This can be probably removed
+
+    /// @notice Checks if given tokenId and borrower exists and if lending time expired (if it did not, it reverts)
+    /// @param tokenId Identifier of certificate
+    /// @param borrower Address, which has rights to use specific piece of art described in certificate
     modifier licenseExpirationCheck(uint256 tokenId, address borrower) {
         _getTokenOrRevert(tokenId);
         Certificate storage cert = s_certs[tokenId];
-        //if(cert.s_tokenIdToBorrower is borrower) revert DRM__LicenseDoesNotExistsForThisUser();
 
-        if (cert.tokenIdToBorrowToEnd[borrower] > block.timestamp) {
-            revert DRM__LicenseNotExpiredYetForThisUser();
-        }
+        if (cert.tokenIdToBorrowToEnd[borrower] == 0) revert DRM__LicenseDoesNotExistsForThisUser();
+        if (cert.tokenIdToBorrowToEnd[borrower] > block.timestamp) revert DRM__LicenseNotExpiredYetForThisUser();
+
         _;
     }
 
@@ -372,6 +368,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return cert.tokenIdToBorrowable;
     }
 
+    /// @notice Tells if given certificate(tokenId) is allowed to be borrowed by other users
     function getExpirationTime(uint256 tokenId, address borrower) external view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
