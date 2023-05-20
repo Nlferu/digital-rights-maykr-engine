@@ -19,7 +19,7 @@ Or other compiler for multiple programming languages.
 
 * Type following command in terminal:
 
-`git clone hhttps://github.com/Neftyr/Digital-Rights-Maykr.git`
+`git clone https://github.com/Neftyr/Digital-Rights-Maykr.git`
 
 **3. Install All Necessary Packages**
 
