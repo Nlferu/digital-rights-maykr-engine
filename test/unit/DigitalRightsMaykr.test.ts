@@ -4,6 +4,35 @@ import { network, deployments, ethers } from "hardhat"
 import { assert, expect } from "chai"
 import { developmentChains } from "../../helper-hardhat-config"
 
+/**
+    * @dev Tests to be done in order:
+        
+    1. Constructor()
+        * It assigns correct owner ✔️
+        * It gives contract correct name and symbol ✔️
+        * It shows 0 minted tokens ✔️
+    2. mintNFT()
+        * It creates new certificate (tokenId/NFT) and emit's (owner, tokenId)
+        * It assigns correct tokenURI to created NFT and emit's (tokenURI, tokenId)
+    3. tokenURI()
+        * It returns correct tokenURI assigned per given tokenId
+    4. buyLicense()
+        createClause()
+    5. allowLending()
+    6. blockLending()
+    7. revokeCertificate()
+    8. checkUpkeep()
+    9. performUpkeep()
+        licenseStatusUpdater()
+            licenseExpirationCheck()
+    10. withdrawProceeds()
+        * It allows certificate lenders to withdraw their proceeds
+        * It reverts if caller has nothing to withdraw
+        * It emit's (amount, caller, success)
+    11. getters()
+        * It displays correct data
+*/
+
 !developmentChains.includes(network.name)
     ? describe.skip
     : describe("Digital Rights Maykr", () => {
