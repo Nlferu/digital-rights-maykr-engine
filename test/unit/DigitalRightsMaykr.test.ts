@@ -1,4 +1,4 @@
-import { DigitalRightsMaykr } from "../../typechain-types" //DateTime, ERC4671, IERC4671, IERC4671Enumerable, IERC4671Metadata
+import { DigitalRightsMaykr } from "../../typechain-types"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { network, deployments, ethers } from "hardhat"
 import { assert, expect } from "chai"
