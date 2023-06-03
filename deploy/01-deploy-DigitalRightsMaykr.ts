@@ -17,7 +17,7 @@ const deployDigitalRightsMaykr: DeployFunction = async (hre: HardhatRuntimeEnvir
 
     /** @dev Verify */
     if (!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
-        await verify(digitalRightsMaykr.address, [])
+        await verify(digitalRightsMaykr.address, [networkConfig[network.config.chainId!]["keepersUpdateInterval"]])
     }
 
     const networkName = network.name == "hardhat" ? "localhost" : network.name

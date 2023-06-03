@@ -105,6 +105,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return cert.tokenIdToURI;
     }
 
+    /// @dev @param lendingTime to be moved from "buyLicense" into "allowLending" function
+
     /// @notice Gives permission to borrower to use copyrights assigned to specific certificate marked by tokenId
     /// @param tokenId Identifier of certificate
     /// @param lendingTime time for how long permission will persist
@@ -321,10 +323,10 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     // Below function wont be probably necessary to operate using proceeds from contract
     /// @notice Allows lenders to stake proceeds on Verse instead of withdrawing them
-    function stakeProceeds() external {}
+    //function stakeProceeds() external {}
 
     /// @notice Allows lenders to unstake proceeds from Verse
-    function unStakeProceeds() external {}
+    //function unStakeProceeds() external {}
 
     /// @dev UNDER DEVELOPMENT --------------------------------------------------------------
 
