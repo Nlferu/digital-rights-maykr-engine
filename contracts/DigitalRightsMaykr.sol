@@ -52,6 +52,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     struct Certificate {
         string tokenIdToURI;
         uint256 tokenIdToPrice;
+        uint256 tokenIdToTime;
         bool tokenIdToBorrowable;
         address[] tokenIdToBorrowers;
         mapping(address => uint256) tokenIdToBorrowToEnd;
@@ -68,7 +69,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     event ClauseCreated(address indexed owner, address indexed borrower, string statement, string expiration, uint256 indexed id);
     event LendingLicenseCreated(uint256 indexed end, bool validity, uint256 indexed id);
     event ProceedsWithdrawal(uint256 indexed amount, address indexed lender, bool indexed transfer);
-    event LendingAllowed(uint256 indexed price, uint256 indexed id);
+    event LendingAllowed(uint256 indexed price, uint256 indexed lendingTime, uint256 indexed id);
     event LendingBlocked(uint256 indexed id);
     event ExpiredLicensesRemoved(bool indexed performed);
     event LicenseRemoved(address indexed borrower, uint256 indexed id);
@@ -109,15 +110,17 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @notice Gives permission to borrower to use copyrights assigned to specific certificate marked by tokenId
     /// @param tokenId Identifier of certificate
-    /// @param lendingTime time for how long permission will persist
+
     /// @param borrower address whom will receive permission
-    function buyLicense(uint256 tokenId, uint256 lendingTime, address borrower) external payable nonReentrant {
+    function buyLicense(uint256 tokenId, address borrower) external payable nonReentrant {
         // Checking if given tokenId exists, not revoked and if owner posted it for lending
         Certificate storage cert = s_certs[tokenId];
         if (ownerOf(tokenId) == borrower || cert.tokenIdToBorrowerToValidity[borrower]) revert DRM__AddressHasRightsAlready();
         if (!cert.tokenIdToBorrowable) revert DRM__TokenNotBorrowable();
         if (isValid(tokenId) == false) revert DRM__TokenNotValid();
         if (cert.tokenIdToPrice > msg.value) revert DRM__NotEnoughETH();
+
+        uint256 lendingTime = getLendingPeriod(tokenId);
 
         // Updating Certificate Struct
         cert.tokenIdToBorrowers.push(borrower);
@@ -171,8 +174,9 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @notice Allows owner of tokenId(Certificate) to make this token borrowable by other users
     /// @param tokenId Identifier of certificate
+    /// @param lendingTime time for how long permission will persist
     /// @param price Amount of ETH (in Wei), for which license for this tokenId can be bought
-    function allowLending(uint256 tokenId, uint256 price) external {
+    function allowLending(uint256 tokenId, uint256 lendingTime, uint256 price) external {
         // Checking if given tokenId exists and if function is called by token owner
         _getTokenOrRevert(tokenId);
         Certificate storage cert = s_certs[tokenId];
@@ -180,9 +184,10 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         if (ownerOf(tokenId) != msg.sender) revert DRM__NotTokenOwner();
         if (cert.tokenIdToBorrowable == true) revert DRM__TokenAlreadyAllowed();
 
-        emit LendingAllowed(price, tokenId);
+        emit LendingAllowed(price, lendingTime, tokenId);
 
         cert.tokenIdToPrice = price;
+        cert.tokenIdToTime = lendingTime;
         cert.tokenIdToBorrowable = true;
     }
 
@@ -388,10 +393,16 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return (cert.tokenIdToBorrowToEnd[borrower] < block.timestamp) ? 0 : (cert.tokenIdToBorrowToEnd[borrower] - block.timestamp);
     }
 
-    function getCertificatePrice(uint256 tokenId) external view returns (uint256) {
+    function getCertificatePrice(uint256 tokenId) public view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToPrice;
+    }
+
+    function getLendingPeriod(uint256 tokenId) public view returns (uint256) {
+        Certificate storage cert = s_certs[tokenId];
+
+        return cert.tokenIdToTime;
     }
 
     function getProceeds(address lender) external view returns (uint256) {
