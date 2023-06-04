@@ -20,6 +20,7 @@ error DRM__LicenseNotExpiredYetForThisUser();
 error DRM__NothingToWithdraw();
 error DRM__TransferFailed();
 error DRM__UpkeepNotNeeded();
+error DRM__LendingPeriodTooShort();
 
 contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationCompatibleInterface {
     /** @dev How it should work from start to end:
@@ -51,8 +52,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     /// @dev Structs
     struct Certificate {
         string tokenIdToURI;
-        uint256 tokenIdToPrice;
         uint256 tokenIdToTime;
+        uint256 tokenIdToPrice;
         bool tokenIdToBorrowable;
         address[] tokenIdToBorrowers;
         mapping(address => uint256) tokenIdToBorrowToEnd;
@@ -174,20 +175,24 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @notice Allows owner of tokenId(Certificate) to make this token borrowable by other users
     /// @param tokenId Identifier of certificate
-    /// @param lendingTime time for how long permission will persist
+    /// @param lendingTime time for how long permission will persist expressed in days
     /// @param price Amount of ETH (in Wei), for which license for this tokenId can be bought
     function allowLending(uint256 tokenId, uint256 lendingTime, uint256 price) external {
         // Checking if given tokenId exists and if function is called by token owner
         _getTokenOrRevert(tokenId);
         Certificate storage cert = s_certs[tokenId];
-
         if (ownerOf(tokenId) != msg.sender) revert DRM__NotTokenOwner();
         if (cert.tokenIdToBorrowable == true) revert DRM__TokenAlreadyAllowed();
 
-        emit LendingAllowed(price, lendingTime, tokenId);
+        uint256 timeUnit = 1 days;
+        uint256 lendingPeriod = timeUnit * lendingTime;
+        // Checking if lending period is at least 1 day long
+        if (lendingPeriod < 86400) revert DRM__LendingPeriodTooShort();
+
+        emit LendingAllowed(price, lendingPeriod, tokenId);
 
         cert.tokenIdToPrice = price;
-        cert.tokenIdToTime = lendingTime;
+        cert.tokenIdToTime = lendingPeriod;
         cert.tokenIdToBorrowable = true;
     }
 
