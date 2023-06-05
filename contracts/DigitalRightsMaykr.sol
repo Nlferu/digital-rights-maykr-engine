@@ -142,7 +142,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         uint256 endPeriod = block.timestamp + lendingTime;
         (uint256 year, uint256 month, uint256 day) = DateTime.timestampToDate(endPeriod);
 
-        string memory b = Strings.toHexString(uint256(uint160(msg.sender)), 20);
+        string memory b = Strings.toHexString(uint256(uint160(ownerOf(tokenId))), 20);
         string memory d = Strings.toHexString(uint256(uint160(borrower)), 20);
         string memory f = Strings.toString(tokenId);
         string memory h = Strings.toString(year);
