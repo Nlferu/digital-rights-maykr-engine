@@ -329,17 +329,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         emit ProceedsWithdrawal(amount, msg.sender, success);
     }
 
-    /// @dev UNDER DEVELOPMENT --------------------------------------------------------------
-
-    // Below function wont be probably necessary to operate using proceeds from contract
-    /// @notice Allows lenders to stake proceeds on Verse instead of withdrawing them
-    //function stakeProceeds() external {}
-
-    /// @notice Allows lenders to unstake proceeds from Verse
-    //function unStakeProceeds() external {}
-
-    /// @dev UNDER DEVELOPMENT --------------------------------------------------------------
-
     /// @notice Modifiers
 
     /// @notice Checks if given tokenId and borrower exists and if lending time expired (if it did not, it reverts)
