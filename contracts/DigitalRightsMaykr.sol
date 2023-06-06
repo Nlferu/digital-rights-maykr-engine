@@ -111,14 +111,13 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @notice Gives permission to borrower to use copyrights assigned to specific certificate marked by tokenId
     /// @param tokenId Identifier of certificate
-
     /// @param borrower address whom will receive permission
     function buyLicense(uint256 tokenId, address borrower) external payable nonReentrant {
         // Checking if given tokenId exists, not revoked and if owner posted it for lending
         Certificate storage cert = s_certs[tokenId];
         if (ownerOf(tokenId) == borrower || cert.tokenIdToBorrowerToValidity[borrower]) revert DRM__AddressHasRightsAlready();
-        if (!cert.tokenIdToBorrowable) revert DRM__TokenNotBorrowable();
         if (isValid(tokenId) == false) revert DRM__TokenNotValid();
+        if (!cert.tokenIdToBorrowable) revert DRM__TokenNotBorrowable();
         if (cert.tokenIdToPrice > msg.value) revert DRM__NotEnoughETH();
 
         uint256 lendingTime = getLendingPeriod(tokenId);
@@ -180,6 +179,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     function allowLending(uint256 tokenId, uint256 lendingTime, uint256 price) external {
         // Checking if given tokenId exists and if function is called by token owner
         _getTokenOrRevert(tokenId);
+        if (isValid(tokenId) == false) revert DRM__TokenNotValid();
         Certificate storage cert = s_certs[tokenId];
         if (ownerOf(tokenId) != msg.sender) revert DRM__NotTokenOwner();
         if (cert.tokenIdToBorrowable == true) revert DRM__TokenAlreadyAllowed();
