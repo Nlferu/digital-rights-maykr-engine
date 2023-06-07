@@ -5,6 +5,8 @@ import path from "path"
 import fs from "fs"
 import "dotenv/config"
 
+/** @dev THIS SCRIPT HAS BEEN BUILT ONLY FOR TESTING PURPOSES */
+
 const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY
 
 /**

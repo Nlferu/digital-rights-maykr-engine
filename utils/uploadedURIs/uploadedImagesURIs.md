@@ -1,3 +1,0 @@
-https://ipfs.io/ipfs/bafybeiccuzmyjlcwd2ze3e6uvwpuhwd7yq3fu4tug2ednwa5aslhdsfou4/CertificateTemplate_1.jpg
-https://ipfs.io/ipfs/bafybeihqp5y5zfsx5c2gggx5x2kcy42kq7b4iybfivjjgowq3dck4kylwa/CertificateTemplate_2.jpg
-https://ipfs.io/ipfs/bafybeibp34qydlzp3garkkdcw2zszk5yvb5laliam23kv46m7bltcrv3wy/CertificateTemplate_3.jpg
