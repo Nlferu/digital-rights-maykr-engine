@@ -20,7 +20,6 @@ error DRM__LicenseNotExpiredYetForThisUser();
 error DRM__NothingToWithdraw();
 error DRM__TransferFailed();
 error DRM__UpkeepNotNeeded();
-error DRM__LendingPeriodTooShort();
 
 contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationCompatibleInterface {
     /** @dev How it should work from start to end:
@@ -35,11 +34,14 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         6. Owner of created certificate can allow lending it for some ETH for specified time
         7. Another user's can now borrow rights to use invention described under specific tokenId (for certain time)
         8. We as contract owner's have only right to revoke tokenId if it is confirmed as plagiarism
-        
-        *. Add chat option between wallets to communicate on chain ??? To be considered as there is not much time left till hackathon end
 
-     @notice Off-Chain Idea 
-     * Create NFT's database to trace copyrights existance (getters like totalSupply, description of token Id etc.)
+    @notice Function "revokeCertificate()"
+        This in future can be restricted by voting system (DAO). Once major of DRM protocol users vote that specific certificate
+        breaks plagiarism rule it will be revoked, which will provide fully decentralized user experience.
+
+    @notice Function "mintNFT()"
+        This function in future can be restricted with minting price to provide some profits for DRM protocol creators.
+
     */
 
     /// @dev Libraries
@@ -65,6 +67,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     mapping(uint256 => Certificate) private s_certs;
     mapping(address => uint256) private s_proceeds;
 
+    mapping(address => address) public s_recipients;
+
     /// @dev Events
     event TokenUriSet(string uri, uint256 indexed id);
     event ClauseCreated(address indexed owner, address indexed borrower, string statement, string expiration, uint256 indexed id);
@@ -80,6 +84,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         s_lastTimeStamp = block.timestamp;
     }
 
+    /// @dev This function in future can be restricted with minting price to provide some profits for DRM protocol creators.
     /// @notice Mint a new certificate (Token/NFT)
     /// @param createdTokenURI URI to assign for minted certificate
     function mintNFT(string memory createdTokenURI) external {
@@ -186,8 +191,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
         uint256 timeUnit = 1 days;
         uint256 lendingPeriod = timeUnit * lendingTime;
-        // Checking if lending period is at least 1 day long
-        if (lendingPeriod < 86400) revert DRM__LendingPeriodTooShort();
 
         emit LendingAllowed(price, lendingPeriod, tokenId);
 
@@ -211,6 +214,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         cert.tokenIdToBorrowable = false;
     }
 
+    /// @dev This function in future can be restricted by voting and used only if major of users vote that specific certificate is plagiarism
     /// @notice Allows contract owner to revoke token with copyrights plagiarism
     /// @param tokenId Identifier of certificate
     function revokeCertificate(uint256 tokenId) external onlyOwner {

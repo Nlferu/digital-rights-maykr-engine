@@ -35,3 +35,4 @@ export const developmentChains = ["hardhat", "localhost"]
 export const imgPath = "../Digital_Rights_Maykr/images"
 export const uploadedImagesURIs = "../Digital_Rights_Maykr/utils/uploadedURIs/uploadedImagesURIs.md"
 export const uploadedMetadataURIs = "../Digital_Rights_Maykr/utils/uploadedURIs/uploadedMetadataURIs.md"
+export const motherContract = "0x9AAf33E5c3E41c145B54E88B55Faa4E5B108f04A"

@@ -3,35 +3,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { network, deployments, ethers } from "hardhat"
 import { assert, expect } from "chai"
 import { developmentChains } from "../../helper-hardhat-config"
-
-/**
-    * @dev Tests to be done in order:
-        
-    1. Constructor()
-        * It assigns correct owner ✔️
-        * It gives contract correct name and symbol ✔️
-        * It shows 0 minted tokens ✔️
-    2. mintNFT()
-        * It creates new certificate (tokenId/NFT) and emit's (owner, tokenId)
-        * It assigns correct tokenURI to created NFT and emit's (tokenURI, tokenId)
-    3. tokenURI()
-        * It returns correct tokenURI assigned per given tokenId
-    4. buyLicense()
-        createClause()
-    5. allowLending()
-    6. blockLending()
-    7. revokeCertificate()
-    8. checkUpkeep()
-    9. performUpkeep()
-        licenseStatusUpdater()
-            licenseExpirationCheck()
-    10. withdrawProceeds()
-        * It allows certificate lenders to withdraw their proceeds
-        * It reverts if caller has nothing to withdraw
-        * It emit's (amount, caller, success)
-    11. getters()
-        * It displays correct data
-*/
+import { parseEther } from "ethers/lib/utils"
 
 !developmentChains.includes(network.name)
     ? describe.skip
@@ -152,7 +124,34 @@ import { developmentChains } from "../../helper-hardhat-config"
                   await expect(digitalRightsMaykr.buyLicense(tokenId, user.address, { value: "777" })).to.emit(digitalRightsMaykr, `LendingLicenseCreated`)
               })
           })
-          //describe("allowLending", () => {})
+          describe("allowLending", () => {
+              beforeEach(async () => {
+                  tokenId = 0
+                  user = accounts[1]
+                  await digitalRightsMaykr.mintNFT("tokenURI")
+              })
+              it("Allows token to be borrowable by other users and updates cert struct accordingly", async () => {
+                  await digitalRightsMaykr.allowLending(tokenId, 2, 777)
+
+                  assert.equal((await digitalRightsMaykr.getCertificatePrice(tokenId)).toString(), "777")
+                  assert.equal((await digitalRightsMaykr.getLendingPeriod(tokenId)).toString(), "172800")
+                  expect(await digitalRightsMaykr.getLendingStatus(tokenId)).to.be.true
+              })
+              it("Reverts if called by not token owner or token doesnt exists, if token is invalid, if token already allowed, if lending period too short", async () => {
+                  drmInstance = digitalRightsMaykr.connect(user)
+                  await expect(drmInstance.allowLending(tokenId, 1, 777)).to.revertedWith("DRM__NotTokenOwner")
+                  await expect(digitalRightsMaykr.allowLending(2, 1, 777)).to.revertedWith("Token does not exist")
+
+                  await digitalRightsMaykr.allowLending(tokenId, 1, 777)
+                  await expect(digitalRightsMaykr.allowLending(tokenId, 1, 777)).to.revertedWith("DRM__TokenAlreadyAllowed")
+
+                  await digitalRightsMaykr.revokeCertificate(tokenId)
+                  await expect(digitalRightsMaykr.allowLending(tokenId, 1, 777)).to.revertedWith("DRM__TokenNotValid")
+              })
+              it("Emits LendingAllowed event", async () => {
+                  await expect(digitalRightsMaykr.allowLending(tokenId, 1, 777)).to.emit(digitalRightsMaykr, "LendingAllowed")
+              })
+          })
           describe("blockLending", () => {
               it("Should block lending for specific tokenId and emit", async () => {
                   user = accounts[1]
@@ -168,9 +167,125 @@ import { developmentChains } from "../../helper-hardhat-config"
                   await expect(digitalRightsMaykr.blockLending(tokenId)).to.be.revertedWith("DRM__TokenAlreadyBlocked")
               })
           })
-          //describe("revokeCertificate", () => {})
-          describe("checkUpkeep", () => {})
-          describe("performUpkeep", () => {})
-          describe("withdrawProceeds", () => {})
-          describe("getters", () => {})
+          describe("revokeCertificate", () => {
+              it("It revokes tokenId from usage and emits Revoked event, can be called only by contract owner", async () => {
+                  await digitalRightsMaykr.mintNFT("tokenURI")
+                  await expect(digitalRightsMaykr.revokeCertificate(tokenId)).to.emit(digitalRightsMaykr, "Revoked")
+
+                  await digitalRightsMaykr.mintNFT("tokenURI")
+                  user = accounts[1]
+                  drmInstance = digitalRightsMaykr.connect(user)
+                  await expect(drmInstance.revokeCertificate(1)).to.revertedWith("Ownable: caller is not the owner")
+              })
+          })
+          describe("checkUpkeep", () => {
+              it("Check if upkeep is needed and throws false if just one requirement is false or all", async () => {
+                  const { upkeepNeeded } = await digitalRightsMaykr.callStatic.checkUpkeep("0x")
+                  assert(upkeepNeeded == false)
+              })
+              it("Check if upkeep is needed and throws true if all requirements are met", async () => {
+                  await digitalRightsMaykr.mintNFT("tokenURI")
+                  await digitalRightsMaykr.allowLending(tokenId, 1, 777)
+
+                  user = accounts[1]
+                  drmInstance = digitalRightsMaykr.connect(user)
+                  await drmInstance.buyLicense(0, user.address, { value: "777" })
+
+                  const time = await digitalRightsMaykr.getLendingPeriod(tokenId)
+                  // Moving time by 1 day (from lending period)
+                  await network.provider.send("evm_increaseTime", [time.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+
+                  const { upkeepNeeded } = await digitalRightsMaykr.callStatic.checkUpkeep("0x")
+                  assert(upkeepNeeded == true)
+              })
+          })
+          describe("performUpkeep", () => {
+              it("Reverts if upkeep not needed", async () => {
+                  await expect(digitalRightsMaykr.performUpkeep([])).to.be.revertedWith("DRM__UpkeepNotNeeded")
+              })
+              it("Erases borrowers, whos license have expired and emits ExpiredLicensesRemoved", async () => {
+                  await digitalRightsMaykr.mintNFT("tokenURIFirst")
+                  await digitalRightsMaykr.mintNFT("tokenURISecond")
+                  await digitalRightsMaykr.allowLending(tokenId, 1, 777)
+                  await digitalRightsMaykr.allowLending(1, 2, 999)
+
+                  user = accounts[1]
+                  const buyer = accounts[2]
+                  drmInstance = digitalRightsMaykr.connect(user)
+                  const drmInstanceBuyer = digitalRightsMaykr.connect(buyer)
+                  await drmInstance.buyLicense(0, user.address, { value: "777" })
+                  await drmInstanceBuyer.buyLicense(1, buyer.address, { value: "999" })
+
+                  const timeFirstNFT = await digitalRightsMaykr.getLendingPeriod(tokenId)
+                  const timeSecondNFT = await digitalRightsMaykr.getLendingPeriod(1)
+                  console.log(`First NFT Lending Time: ${timeFirstNFT} Second NFT Lending Time: ${timeSecondNFT}`)
+
+                  let borrowersF = await digitalRightsMaykr.getCertsBorrowers(tokenId)
+                  let borrowersS = await digitalRightsMaykr.getCertsBorrowers(1)
+                  console.log(`Borrowers Of First NFT: ${borrowersF} Borrowers Of Second NFT: ${borrowersS}`)
+                  assert.equal(borrowersF[0], "0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
+                  assert.equal(borrowersS[0], "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC")
+
+                  // Moving time by 1 day (from lending period of first NFT)
+                  await network.provider.send("evm_increaseTime", [timeFirstNFT.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+
+                  await expect(digitalRightsMaykr.performUpkeep([])).to.emit(digitalRightsMaykr, "ExpiredLicensesRemoved")
+
+                  borrowersF = await digitalRightsMaykr.getCertsBorrowers(tokenId)
+                  borrowersS = await digitalRightsMaykr.getCertsBorrowers(1)
+                  console.log(`Borrowers Of First NFT: ${borrowersF} Borrowers Of Second NFT: ${borrowersS}`)
+                  assert.lengthOf(borrowersF, 0, "Array should be empty")
+                  assert.equal(borrowersS[0], "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC")
+              })
+          })
+          describe("withdrawProceeds", () => {
+              beforeEach(async () => {
+                  user = accounts[3]
+                  drmInstance = digitalRightsMaykr.connect(user)
+              })
+              it("Reverts if amount to withdraw is 0", async () => {
+                  await expect(drmInstance.withdrawProceeds()).to.be.revertedWith("DRM__NothingToWithdraw")
+              })
+              it("Reverts if transaction fails and keep pending amount to withdraw", async () => {})
+              it("Withdraws proceeds to lender", async () => {
+                  let contractBalance = await ethers.provider.getBalance(digitalRightsMaykr.address)
+                  let userBalance = await ethers.provider.getBalance(user.address)
+                  const lender = accounts[4]
+                  let lenderBalance = await ethers.provider.getBalance(lender.address)
+                  const drmInstanceLender = digitalRightsMaykr.connect(lender)
+
+                  assert.equal(contractBalance.toString(), "0")
+                  assert.equal(userBalance.toString(), parseEther("10000").toString())
+                  assert.equal(lenderBalance.toString(), parseEther("10000").toString())
+
+                  await drmInstanceLender.mintNFT("SomeOtherNFT")
+                  await drmInstanceLender.allowLending(tokenId, 1, 777)
+                  const lenderBalanceAfter = await ethers.provider.getBalance(lender.address)
+
+                  const resTx = await drmInstance.buyLicense(0, user.address, { value: parseEther("72") })
+                  const recTx = await resTx.wait()
+
+                  const gas = recTx.gasUsed
+                  const gasPrice = recTx.effectiveGasPrice
+                  const gasCost = gas.mul(gasPrice)
+
+                  contractBalance = await ethers.provider.getBalance(digitalRightsMaykr.address)
+                  userBalance = await ethers.provider.getBalance(user.address)
+
+                  assert.equal(contractBalance.toString(), parseEther("72").toString())
+                  assert.equal(userBalance.toString(), parseEther("10000").sub(parseEther("72")).sub(gasCost).toString())
+
+                  const wResTx = await drmInstanceLender.withdrawProceeds()
+                  const wRecTx = await wResTx.wait()
+                  const finalLenderBalance = await ethers.provider.getBalance(lender.address)
+
+                  const wGas = wRecTx.gasUsed
+                  const wGasPrice = wRecTx.effectiveGasPrice
+                  const wGasCost = wGas.mul(wGasPrice)
+
+                  assert.equal(finalLenderBalance.toString(), lenderBalanceAfter.add(parseEther("72")).sub(wGasCost).toString())
+              })
+          })
       })

@@ -20,9 +20,11 @@ const config: HardhatUserConfig = {
     networks: {
         hardhat: {
             chainId: 31337,
+            allowUnlimitedContractSize: true,
         },
         localhost: {
             chainId: 31337,
+            allowUnlimitedContractSize: true,
         },
         goerli: {
             url: GOERLI_RPC_URL,
@@ -53,6 +55,14 @@ const config: HardhatUserConfig = {
             },
             {
                 version: "0.8.18",
+                settings: {
+                    /** @dev Optimizer is solving below error with too big contract bytes size for "GovernorContract.sol":
+                    /*  Contract code size is 27101 bytes and exceeds 24576 bytes (a limit introduced in Spurious Dragon) */
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
             },
         ],
     },
