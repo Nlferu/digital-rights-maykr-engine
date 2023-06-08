@@ -3,7 +3,7 @@
 
 **The Front-End repo is here:** https://github.com/Neftyr/Digital-Rights-Maykr-Front-End
 
-**Live Demo Hosted By Vercel:** https://...
+**Live Demo Hosted By Vercel:** https://digital-rights-maykr.vercel.app/
 
 # Welcome To Digital Rights Maykr!
 
@@ -13,11 +13,11 @@ Experience the true power of blockchain that revolutionizes the protection and a
 and unlock the extraordinary potential to safeguard your creations and establish undeniable proof of your authorship.
 Our protocol offers a cutting-edge feature that enables you to create and lend rights to your masterpiece
 which also allows you to get proceeds from your work and grants you possibility
-to withdraw or multiply those with our partner Verse
+to withdraw or multiply those with our partner Verse.
 
 Of course others will be able to purchase rights for their own usage in their projects, but only for time specified by you.
 In case you are not sure if someone have invented already artistry you are thinking or working on already
-you can check our <strong>Gallery</strong> tab and see if your idea is totally unique!
+you can check our Gallery tab and see if your idea is totally unique!
 
 Join us on this extraordinary adventure, and embrace the boundless possibilities that await you.
 May your journey be filled with happiness and unparalleled success!
