@@ -67,8 +67,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     mapping(uint256 => Certificate) private s_certs;
     mapping(address => uint256) private s_proceeds;
 
-    mapping(address => address) public s_recipients;
-
     /// @dev Events
     event TokenUriSet(string uri, uint256 indexed id);
     event ClauseCreated(address indexed owner, address indexed borrower, string statement, string expiration, uint256 indexed id);
