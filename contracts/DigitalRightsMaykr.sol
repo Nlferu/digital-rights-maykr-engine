@@ -187,7 +187,9 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         if (ownerOf(tokenId) != msg.sender) revert DRM__NotTokenOwner();
         if (cert.tokenIdToBorrowable == true) revert DRM__TokenAlreadyAllowed();
 
-        uint256 timeUnit = 1 days;
+        /// @dev Below "timeUnit" in production should be changed into "1 days" to set min time per borrow
+        /* For production purposes it stats as 1 second */
+        uint256 timeUnit = 1;
         uint256 lendingPeriod = timeUnit * lendingTime;
 
         emit LendingAllowed(price, lendingPeriod, tokenId);
