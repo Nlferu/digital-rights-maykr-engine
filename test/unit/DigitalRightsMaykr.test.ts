@@ -14,12 +14,13 @@ import { parseEther } from "ethers/lib/utils"
           let deployer: SignerWithAddress
           let user: SignerWithAddress
           let tokenId: number
-          let resMintTx: any
-          let recMintTx: any
+          let resTx: any
+          let recTx: any
 
           beforeEach(async () => {
               accounts = await ethers.getSigners()
               deployer = accounts[0]
+              tokenId = 0
 
               await deployments.fixture(["all"])
               digitalRightsMaykr = await ethers.getContract("DigitalRightsMaykr")
@@ -41,12 +42,12 @@ import { parseEther } from "ethers/lib/utils"
           })
           describe("mintNFT", () => {
               it("Mints a new certificate (Token/NFT) with assigned tokenURI and emits", async () => {
-                  resMintTx = await digitalRightsMaykr.mintNFT("tokenURIx")
-                  recMintTx = await resMintTx.wait()
+                  resTx = await digitalRightsMaykr.mintNFT("tokenURIx")
+                  recTx = await resTx.wait()
 
-                  const minter = recMintTx.events[0].args.owner
-                  tokenId = recMintTx.events[1].args.id
-                  const uri = recMintTx.events[1].args.uri
+                  const minter = recTx.events[0].args.owner
+                  tokenId = recTx.events[1].args.id
+                  const uri = recTx.events[1].args.uri
                   console.log(`Minter: ${minter} TokenId: ${tokenId} URI: ${uri}`)
                   const tokenCounter = await digitalRightsMaykr.emittedCount()
 
@@ -131,10 +132,13 @@ import { parseEther } from "ethers/lib/utils"
                   await digitalRightsMaykr.mintNFT("tokenURI")
               })
               it("Allows token to be borrowable by other users and updates cert struct accordingly", async () => {
-                  await digitalRightsMaykr.allowLending(tokenId, 66, 777)
+                  resTx = await digitalRightsMaykr.allowLending(tokenId, 66, 777)
+                  recTx = await resTx.wait()
+
+                  const time = recTx.events![0].args.lendingTime
 
                   assert.equal((await digitalRightsMaykr.getCertificatePrice(tokenId)).toString(), "777")
-                  assert.equal((await digitalRightsMaykr.getLendingPeriod(tokenId)).toString(), "66")
+                  assert.equal(time, "66")
                   expect(await digitalRightsMaykr.getLendingStatus(tokenId)).to.be.true
               })
               it("Reverts if called by not token owner or token doesnt exists, if token is invalid, if token already allowed, if lending period too short", async () => {
@@ -185,13 +189,15 @@ import { parseEther } from "ethers/lib/utils"
               })
               it("Check if upkeep is needed and throws true if all requirements are met", async () => {
                   await digitalRightsMaykr.mintNFT("tokenURI")
-                  await digitalRightsMaykr.allowLending(tokenId, 55, 777)
+                  const resAllowTx = await digitalRightsMaykr.allowLending(tokenId, 55, 777)
+                  const recAllowTx = await resAllowTx.wait()
+
+                  const time = recAllowTx!.events![0].args!.lendingTime
 
                   user = accounts[1]
                   drmInstance = digitalRightsMaykr.connect(user)
                   await drmInstance.buyLicense(0, user.address, { value: "777" })
 
-                  const time = await digitalRightsMaykr.getLendingPeriod(tokenId)
                   // Moving time by 1 day (from lending period)
                   await network.provider.send("evm_increaseTime", [time.toNumber() + 1])
                   await network.provider.send("evm_mine", [])
@@ -207,8 +213,13 @@ import { parseEther } from "ethers/lib/utils"
               it("Erases borrowers, whos license have expired and emits ExpiredLicensesRemoved", async () => {
                   await digitalRightsMaykr.mintNFT("tokenURIFirst")
                   await digitalRightsMaykr.mintNFT("tokenURISecond")
-                  await digitalRightsMaykr.allowLending(tokenId, 40, 777)
-                  await digitalRightsMaykr.allowLending(1, 100, 999)
+                  resTx = await digitalRightsMaykr.allowLending(tokenId, 40, 777)
+                  recTx = await resTx.wait()
+                  const time_0 = recTx.events![0].args.lendingTime
+
+                  resTx = await digitalRightsMaykr.allowLending(1, 100, 999)
+                  recTx = await resTx.wait()
+                  const time_1 = recTx.events![0].args.lendingTime
 
                   user = accounts[1]
                   const buyer = accounts[2]
@@ -217,9 +228,7 @@ import { parseEther } from "ethers/lib/utils"
                   await drmInstance.buyLicense(0, user.address, { value: "777" })
                   await drmInstanceBuyer.buyLicense(1, buyer.address, { value: "999" })
 
-                  const timeFirstNFT = await digitalRightsMaykr.getLendingPeriod(tokenId)
-                  const timeSecondNFT = await digitalRightsMaykr.getLendingPeriod(1)
-                  console.log(`First NFT Lending Time: ${timeFirstNFT} Second NFT Lending Time: ${timeSecondNFT}`)
+                  console.log(`First NFT Lending Time: ${time_0} Second NFT Lending Time: ${time_1}`)
 
                   let borrowersF = await digitalRightsMaykr.getCertsBorrowers(tokenId)
                   let borrowersS = await digitalRightsMaykr.getCertsBorrowers(1)
@@ -228,7 +237,7 @@ import { parseEther } from "ethers/lib/utils"
                   assert.equal(borrowersS[0], "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC")
 
                   // Moving time by 1 second/day depends on contract version (from lending period of first NFT)
-                  await network.provider.send("evm_increaseTime", [timeFirstNFT.toNumber() + 2])
+                  await network.provider.send("evm_increaseTime", [time_0.toNumber() + 2])
                   await network.provider.send("evm_mine", [])
 
                   await expect(digitalRightsMaykr.performUpkeep([])).to.emit(digitalRightsMaykr, "ExpiredLicensesRemoved")

@@ -49,7 +49,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
     /// @dev Variables
     uint256 private immutable i_interval;
-    uint256 private s_lastTimeStamp;
+    uint256 private immutable s_lastTimeStamp;
 
     /// @dev Structs
     struct Certificate {
@@ -85,7 +85,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     /// @dev This function in future can be restricted with minting price to provide some profits for DRM protocol creators.
     /// @notice Mint a new certificate (Token/NFT)
     /// @param createdTokenURI URI to assign for minted certificate
-    function mintNFT(string memory createdTokenURI) external {
+    function mintNFT(string calldata createdTokenURI) external {
         // Counting s_certs from 0 per total created
         uint256 newTokenId = emittedCount();
         Certificate storage cert = s_certs[newTokenId];
@@ -391,13 +391,13 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return (cert.tokenIdToBorrowToEnd[borrower] < block.timestamp) ? 0 : (cert.tokenIdToBorrowToEnd[borrower] - block.timestamp);
     }
 
-    function getCertificatePrice(uint256 tokenId) public view returns (uint256) {
+    function getCertificatePrice(uint256 tokenId) external view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToPrice;
     }
 
-    function getLendingPeriod(uint256 tokenId) public view returns (uint256) {
+    function getLendingPeriod(uint256 tokenId) internal view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToTime;
