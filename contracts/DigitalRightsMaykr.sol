@@ -385,24 +385,32 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     }
 
     /// @notice Tells if given certificate(tokenId) is allowed to be borrowed by other users
+    /// @param tokenId Identifier of certificate
+    /// @param borrower Address, which has rights to use specific piece of art described in certificate
     function getExpirationTime(uint256 tokenId, address borrower) external view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return (cert.tokenIdToBorrowToEnd[borrower] < block.timestamp) ? 0 : (cert.tokenIdToBorrowToEnd[borrower] - block.timestamp);
     }
 
+    /// @notice Gives certificate lending price
+    /// @param tokenId Identifier of certificate
     function getCertificatePrice(uint256 tokenId) external view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToPrice;
     }
 
+    /// @notice Gives certificate lending price
+    /// @param tokenId Identifier of certificate
     function getLendingPeriod(uint256 tokenId) internal view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToTime;
     }
 
+    /// @notice Gives amount of ETH available to withdraw by certificate lender
+    /// @param lender Address, which we are checking
     function getProceeds(address lender) external view returns (uint256) {
         return s_proceeds[lender];
     }
