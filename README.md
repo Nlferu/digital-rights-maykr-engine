@@ -1,10 +1,9 @@
 # Digital Rights Maykr
-* Back-End
+## Back-End
+
+**Live Project:** https://digital-rights-maykr.vercel.app/
 
 **The Front-End repo is here:** https://github.com/Nlferu/Digital-Rights-Maykr
-
-#### To test this app locally run `yarn dev`
-**Live Project:** https://digital-rights-maykr.vercel.app/
 
 # Welcome To Digital Rights Maykr!
 
