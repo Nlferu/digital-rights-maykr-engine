@@ -16,7 +16,7 @@ const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY
  * @param {string} description a text description for the NFT
  */
 /** @dev We will probably need to pass all response @params into below function sent by user via front-end website */
-async function storeNFTs(imagesPath) {
+async function storeNFTs(imagesPath: string) {
     console.log("Uploading Images and Metadata To NFT.Storage...")
     const fullImagesPath = path.resolve(imagesPath)
     const files = fs.readdirSync(fullImagesPath)
@@ -66,9 +66,9 @@ async function storeNFTs(imagesPath) {
  * @param {string} filePath the path to a file to store
  * @returns {File} a File object containing the file content
  */
-export async function fileFromPath(filePath) {
+export async function fileFromPath(filePath: string): Promise<File> {
     const content = await fs.promises.readFile(filePath)
-    const type = mime.getType(filePath)
+    const type = mime.getType(filePath) || "application/octet-stream"
     return new File([content], path.basename(filePath), { type })
 }
 
