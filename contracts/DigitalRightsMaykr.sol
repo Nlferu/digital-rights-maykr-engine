@@ -48,8 +48,8 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
     using DateTime for uint256;
 
     /// @dev Variables
+    uint256 private s_lastTimeStamp;
     uint256 private immutable i_interval;
-    uint256 private immutable s_lastTimeStamp;
 
     /// @dev Structs
     struct Certificate {
@@ -109,8 +109,6 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
 
         return cert.tokenIdToURI;
     }
-
-    /// @dev @param lendingTime to be moved from "buyLicense" into "allowLending" function
 
     /// @notice Gives permission to borrower to use copyrights assigned to specific certificate marked by tokenId
     /// @param tokenId Identifier of certificate
@@ -312,6 +310,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         }
 
         cert.tokenIdToBorrowerToValidity[borrower] = false;
+        s_lastTimeStamp = block.timestamp;
     }
 
     /// @notice Allows lenders to withdraw their proceeds
