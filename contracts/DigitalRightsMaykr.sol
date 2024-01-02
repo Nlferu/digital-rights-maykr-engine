@@ -121,7 +121,7 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         if (!cert.tokenIdToBorrowable) revert DRM__TokenNotBorrowable();
         if (cert.tokenIdToPrice > msg.value) revert DRM__NotEnoughETH();
 
-        uint256 lendingTime = getLendingPeriod(tokenId);
+        uint256 lendingTime = cert.tokenIdToTime;
 
         // Updating Certificate Struct
         cert.tokenIdToBorrowers.push(borrower);
@@ -400,9 +400,9 @@ contract DigitalRightsMaykr is ERC4671, Ownable, ReentrancyGuard, AutomationComp
         return cert.tokenIdToPrice;
     }
 
-    /// @notice Gives certificate lending price
+    /// @notice Gives certificate lending period
     /// @param tokenId Identifier of certificate
-    function getLendingPeriod(uint256 tokenId) internal view returns (uint256) {
+    function getLendingPeriod(uint256 tokenId) external view returns (uint256) {
         Certificate storage cert = s_certs[tokenId];
 
         return cert.tokenIdToTime;
